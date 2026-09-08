@@ -1,0 +1,16 @@
+{
+  "name": "Asset 360 Investigation Workspace",
+  "description": "Search-and-investigate workspace on Cognite Core Data Model",
+  "externalId": "asset-360",
+  "versionTag": "0.0.1",
+  "infra": "appsApi",
+  "deployments": [
+    {
+      "org": "publicdata",
+      "project": "publicdatacdm",
+      "baseUrl": "https://api.cognitedata.com",
+      "deployClientId": "",
+      "deploySecretName": "PUBLICDATA_PUBLICDATACDM_API"
+    }
+  ]
+}
