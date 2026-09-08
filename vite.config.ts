@@ -10,6 +10,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  optimizeDeps: {
+    exclude: ['pdfjs-dist'],
+  },
   base: './',
   // manifestCspPlugin() must stay first — its middleware sets the
   // Content-Security-Policy header before any HTML response is sent.
