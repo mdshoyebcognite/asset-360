@@ -1,75 +1,26 @@
-import type { ComponentProps } from 'react';
-import { useEffect, useState } from 'react';
 import { connectToHostApp as connectToHostAppImpl } from '@cognite/app-sdk';
 import type { HostAppAPI } from '@cognite/app-sdk';
 import { CogniteSdkProvider, useCogniteSdk } from '@cognite/app-sdk/react';
-// Import per-component, not from the `@cognite/aura/components` barrel: the
-// barrel pulls in Aura's whole dependency graph (including large libraries like
-// mermaid and shiki), which slows the build and can exhaust memory in CI.
 import { Alert, AlertDescription } from '@cognite/aura/components/alert';
-import { Badge } from '@cognite/aura/components/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@cognite/aura/components/card';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@cognite/aura/components/collapsible';
+import { Card, CardContent } from '@cognite/aura/components/card';
 import { Loader } from '@cognite/aura/components/loader';
-import { Separator } from '@cognite/aura/components/separator';
-import { IconCaretUpDown, IconRocket } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import type { ComponentProps } from 'react';
 
-import appConfig from '../app.json';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { Asset360View } from './features/asset-360/Asset360View';
+import { HomeView } from './features/home/HomeView';
+import { AppStateProvider } from './state/AppStateProvider';
+import { RecentlyViewedProvider } from './state/RecentlyViewedProvider';
+import { ServicesProvider } from './state/ServicesProvider';
+import { useAppState } from './state/useAppState';
 
-const FLOWS_DOCUMENTATION_HREF = 'https://docs.cognite.com/cdf/flows';
+type AppApi = Pick<HostAppAPI, 'syncInternalState' | 'navigateExternal'>;
 
-const INTRO_COPY =
-  "Build and deploy React apps to Cognite Data Fusion in minutes. Aura, Cognite's AI-native design system, comes pre-configured so your app looks and feels at home from day one. Follow the checklist below to get started.";
-
-const CHECKLIST_STEPS = [
-  {
-    label: 'Plan',
-    badge: 'Step 1',
-    body: (
-      <>
-        Open <code>SPEC.md</code> at the repo root and describe what you want to build. If <code>.specify/</code> is
-        present, run <code>/speckit.specify</code> in Claude Code or Cursor to fill it in interactively. Otherwise, ask
-        your agent to collaborate on <code>SPEC.md</code> directly. Keep it simple and clear, then move on to building
-        when ready.
-      </>
-    ),
-  },
-  {
-    label: 'Explore',
-    badge: 'Step 2',
-    body: (
-      <>
-        Ask Cursor to review and understand your data model, then answer any follow-up questions it raises. Continue
-        refining the app by providing additional input as needed.
-      </>
-    ),
-  },
-  {
-    label: 'Deploy',
-    badge: 'Step 3',
-    body: (
-      <>
-        When ready to deploy, run <code>npx @cognite/cli apps deploy --interactive</code> in the terminal. Your app will
-        appear in the Fusion portal under Custom apps. Run the command again to redeploy new changes.
-      </>
-    ),
-  },
-] as const;
-
-type AppInternalState = { openStep: string | null };
-
-type AppApi = Pick<HostAppAPI, 'syncInternalState'>;
-type AppConnectResult = { api: AppApi; initialState?: string };
+type AppConnectResult = {
+  api: AppApi;
+  initialState?: string;
+};
 
 const loadingFallback = (
   <main className="min-h-screen bg-muted/50 text-foreground">
@@ -100,140 +51,38 @@ const errorFallback = (
   </main>
 );
 
-type AppContentProps = { api: AppApi | null; initialState?: string };
+type RoutedContentProps = {
+  api: AppApi | null;
+};
 
-function AppContent({ api, initialState }: AppContentProps) {
-  const client = useCogniteSdk();
+function RoutedContent({ api }: RoutedContentProps) {
+  const { state } = useAppState();
 
-  const deployment = appConfig.deployments?.[0];
-  const orgLabel = deployment?.org ?? '';
-  const projectLabel = deployment?.project ?? client.project ?? '';
-
-  const [openStep, setOpenStep] = useState<string | null>(CHECKLIST_STEPS[0].label);
-
-  // initialState is restored from the ?customAppInternalState search param by the host.
-  useEffect(() => {
-    if (!initialState) return;
-    try {
-      const saved = JSON.parse(initialState) as AppInternalState;
-      if (typeof saved.openStep === 'string' || saved.openStep === null) {
-        setOpenStep(saved.openStep);
-      }
-    } catch {
-      // ignore malformed saved state
-    }
-  }, [initialState]);
-
-  function handleStepToggle(label: string, isOpen: boolean) {
-    const next = isOpen ? label : null;
-    setOpenStep(next);
-    // Writes to the ?customAppInternalState search param so the URL is bookmarkable/shareable.
-    void api?.syncInternalState(JSON.stringify({ openStep: next } satisfies AppInternalState));
+  if (state.page === 'asset' && state.assetId) {
+    return <Asset360View assetId={state.assetId} api={api} />;
   }
 
+  return <HomeView />;
+}
+
+type AppContentProps = {
+  api: AppApi | null;
+  initialState?: string;
+};
+
+function AppContent({ api, initialState }: AppContentProps) {
+  useCogniteSdk();
+
   return (
-    <main className="min-h-screen bg-muted/50 text-foreground">
-      <section className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center p-4 sm:p-8">
-        <Card>
-          <div className="p-15 gap-16">
-            <CardHeader>
-              <CardTitle as="h1">Welcome to Flows custom apps</CardTitle>
-              <CardDescription>{INTRO_COPY}</CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <Separator />
-
-              <div className="flex flex-col gap-6 pt-16">
-                <div className="flex items-center gap-2 pt-4">
-                  <IconRocket aria-hidden />
-                  <span className="text-2xl font-medium">App deployment checklist</span>
-                </div>
-
-                <div className="flex flex-col gap-4 px-4">
-                  {CHECKLIST_STEPS.map((step) => (
-                    <Collapsible
-                      key={step.label}
-                      open={openStep === step.label}
-                      onOpenChange={(isOpen) => handleStepToggle(step.label, isOpen)}
-                    >
-                      <CollapsibleTrigger className="w-full">
-                        <div className="flex w-full min-w-0 items-center justify-between gap-3 text-left">
-                          <span className="text-lg">{step.label}</span>
-                          <span className="inline-flex shrink-0 items-center gap-2">
-                            <Badge variant="mountain" background>
-                              {step.badge}
-                            </Badge>
-                            <IconCaretUpDown aria-hidden className="size-4 text-muted-foreground" />
-                          </span>
-                        </div>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="py-2">{step.body}</div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))}
-                </div>
-
-                <div className="mb-10">
-                  <Alert variant="secondary">
-                    <AlertDescription>
-                      <div className="flex flex-wrap items-center gap-2 text-lg">
-                        <span>Your app will deploy to</span>
-                        {orgLabel ? (
-                          <>
-                            <span>org</span>
-                            <Badge variant="nordic" background>
-                              {orgLabel}
-                            </Badge>
-                            <span>and project</span>
-                          </>
-                        ) : (
-                          <span>project</span>
-                        )}
-                        <Badge variant="nordic" background>
-                          {projectLabel}
-                        </Badge>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                </div>
-
-                <Collapsible>
-                  <CollapsibleTrigger className="w-full">
-                    <div className="flex w-full min-w-0 items-center justify-between gap-3 text-left">
-                      <span className="text-lg">Support</span>
-                      <span className="inline-flex shrink-0 items-center gap-2">
-                        <Badge variant="mountain">
-                          Help & feedback
-                        </Badge>
-                        <IconCaretUpDown aria-hidden className="size-4 text-muted-foreground" />
-                      </span>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="py-2">
-                      <p>
-                        For additional support and feedback, please head to{' '}
-                        <a
-                          href={FLOWS_DOCUMENTATION_HREF}
-                          rel="noreferrer"
-                          style={{ color: '#486AED' }}
-                          target="_blank"
-                        >
-                          Flows documentation
-                        </a>
-                        .
-                      </p>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            </CardContent>
-          </div>
-        </Card>
-      </section>
-    </main>
+    <AppStateProvider api={api} initialState={initialState}>
+      <ServicesProvider>
+        <RecentlyViewedProvider>
+          <AppErrorBoundary>
+            <RoutedContent api={api} />
+          </AppErrorBoundary>
+        </RecentlyViewedProvider>
+      </ServicesProvider>
+    </AppStateProvider>
   );
 }
 
@@ -251,7 +100,15 @@ function App({
   useEffect(() => {
     let cancelled = false;
     void connectToHostApp().then((result) => {
-      if (!cancelled) setConnection(result);
+      if (!cancelled) {
+        setConnection({
+          api: {
+            syncInternalState: result.api.syncInternalState,
+            navigateExternal: result.api.navigateExternal,
+          },
+          initialState: result.initialState,
+        });
+      }
     });
     return () => {
       cancelled = true;

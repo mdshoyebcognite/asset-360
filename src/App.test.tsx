@@ -1,19 +1,21 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HostAppAPI, ConnectToHostAppResult } from '@cognite/app-sdk';
 import { CogniteClient } from '@cognite/sdk';
-import type { ComponentProps } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { ComponentProps, ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
 
 type AppDeps = NonNullable<ComponentProps<typeof App>['deps']>;
 
-type AppApi = Pick<HostAppAPI, 'syncInternalState'>;
+type AppApi = Pick<HostAppAPI, 'syncInternalState' | 'navigateExternal'>;
 
 function makeApi(): AppApi {
   return {
     syncInternalState: vi.fn<HostAppAPI['syncInternalState']>(() => Promise.resolve(true)),
+    navigateExternal: vi.fn<HostAppAPI['navigateExternal']>(() => Promise.resolve(true)),
   };
 }
 
@@ -30,6 +32,8 @@ function makeDeps(): AppDeps {
           getBaseUrl: vi.fn<HostAppAPI['getBaseUrl']>(() => Promise.resolve('https://cognite.test')),
           getAccessToken: vi.fn<HostAppAPI['getAccessToken']>(() => Promise.resolve('test-token')),
           getAppId: vi.fn<HostAppAPI['getAppId']>(() => Promise.resolve('test-app-id')),
+          syncInternalState: vi.fn<HostAppAPI['syncInternalState']>(() => Promise.resolve(true)),
+          navigateExternal: vi.fn<HostAppAPI['navigateExternal']>(() => Promise.resolve(true)),
         } as Partial<HostAppAPI> as HostAppAPI,
       })
     ),
@@ -44,57 +48,90 @@ function makeLoadingDeps(): AppDeps {
   };
 }
 
+function renderApp(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders loading state', () => {
-    render(<App deps={makeLoadingDeps()} connectToHostApp={() => new Promise<never>(() => undefined)} />);
+    renderApp(<App deps={makeLoadingDeps()} connectToHostApp={() => new Promise<never>(() => undefined)} />);
     expect(screen.getByText('Loading project...')).toBeInTheDocument();
   });
 
-  it('renders splash with deployment targets and checklist copy', async () => {
-    render(<App deps={makeDeps()} connectToHostApp={makeConnectedFn()} />);
-    await waitFor(() => expect(screen.getByText('Welcome to Flows custom apps')).toBeInTheDocument());
-    expect(screen.getByText('App deployment checklist')).toBeInTheDocument();
-    expect(screen.getByText('Plan')).toBeInTheDocument();
-    expect(screen.getByText('Explore')).toBeInTheDocument();
-    expect(screen.getByText('Deploy')).toBeInTheDocument();
-    expect(screen.getByText('Support')).toBeInTheDocument();
-    expect(screen.getByText('Help & feedback')).toBeInTheDocument();
-    expect(screen.getByText('Your app will deploy to')).toBeInTheDocument();
-    expect(screen.getByText('org')).toBeInTheDocument();
-    expect(screen.getByText('and project')).toBeInTheDocument();
-    expect(screen.getByText('publicdata')).toBeInTheDocument();
-    expect(screen.getByText('publicdatacdm')).toBeInTheDocument();
-    expect(screen.getAllByText(/SPEC\.md/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/apps deploy --interactive/)).toBeInTheDocument();
-  });
-
-  it('syncs internal state when the open step changes', async () => {
-    const api = makeApi();
-    render(<App deps={makeDeps()} connectToHostApp={makeConnectedFn(api)} />);
-    await waitFor(() => expect(screen.getByText('App deployment checklist')).toBeInTheDocument());
-
-    await userEvent.click(screen.getByText('Explore'));
-
-    expect(api.syncInternalState).toHaveBeenCalledWith(
-      JSON.stringify({ openStep: 'Explore' })
+  it('renders home view with search and recently viewed sections', async () => {
+    renderApp(<App deps={makeDeps()} connectToHostApp={makeConnectedFn()} />);
+    await waitFor(() =>
+      expect(screen.getByText('Asset 360 Investigation Workspace')).toBeInTheDocument(),
     );
+    expect(screen.getByText('Search assets')).toBeInTheDocument();
+    expect(screen.getByText('Recently viewed')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search by tag, name, or description...')).toBeInTheDocument();
   });
 
-  it('restores the open step from initial state', async () => {
+  it('syncs internal state when navigating to an asset page', async () => {
     const api = makeApi();
-    render(<App
-      deps={makeDeps()}
-      connectToHostApp={() => Promise.resolve({ api, initialState: JSON.stringify({ openStep: 'Deploy' }) })}
-    />);
-    await waitFor(() => expect(screen.getByText('App deployment checklist')).toBeInTheDocument());
+    renderApp(
+      <App
+        deps={makeDeps()}
+        connectToHostApp={() =>
+          Promise.resolve({
+            api,
+            initialState: JSON.stringify({ page: 'asset', assetId: 'cdf_cdm:test-asset' }),
+          })
+        }
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Back to search')).toBeInTheDocument());
+  });
+
+  it('restores home page from initial state', async () => {
+    renderApp(
+      <App
+        deps={makeDeps()}
+        connectToHostApp={() =>
+          Promise.resolve({
+            api: makeApi(),
+            initialState: JSON.stringify({ page: 'home' }),
+          })
+        }
+      />,
+    );
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /deploy/i })).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByText('Asset 360 Investigation Workspace')).toBeInTheDocument(),
     );
-    expect(screen.getByRole('button', { name: /plan/i })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('navigates home from asset page', async () => {
+    const api = makeApi();
+    renderApp(
+      <App
+        deps={makeDeps()}
+        connectToHostApp={() =>
+          Promise.resolve({
+            api,
+            initialState: JSON.stringify({ page: 'asset', assetId: 'cdf_cdm:test-asset' }),
+          })
+        }
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Back to search')).toBeInTheDocument());
+    await userEvent.click(screen.getByText('Back to search'));
+
+    expect(api.syncInternalState).toHaveBeenCalledWith(JSON.stringify({ page: 'home' }));
   });
 });
