@@ -55,7 +55,7 @@ export function WorkOrdersPanel({
           errorMessage={error?.message}
           onRetry={onRetry}
         >
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b text-sm text-muted-foreground">
@@ -100,7 +100,7 @@ export function WorkOrdersPanel({
           </div>
 
           {selectedActivity ? (
-            <div className="mt-6 space-y-3 rounded-md border p-4">
+            <div className="mt-6 w-full space-y-3 rounded-md border p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-medium">{selectedActivity.title}</h3>
                 <Button variant="secondary" onClick={() => onSelectActivity(null)}>

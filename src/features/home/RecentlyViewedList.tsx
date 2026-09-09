@@ -33,7 +33,7 @@ export function RecentlyViewedList({ items, onSelect }: RecentlyViewedListProps)
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid w-full gap-3">
       {items.map((item) => (
         <Card key={encodeInstanceRef(item.ref)}>
           <CardHeader className="pb-2">

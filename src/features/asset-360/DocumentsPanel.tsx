@@ -61,7 +61,7 @@ export function DocumentsPanel({
           errorMessage={error?.message}
           onRetry={onRetry}
         >
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b text-sm text-muted-foreground">
@@ -134,7 +134,7 @@ function DocumentPreview({
 
   if (supportsInline) {
     return (
-      <div className="space-y-3 rounded-md border p-4">
+      <div className="w-full space-y-3 rounded-md border p-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-medium">{file.name}</h3>
           <Button variant="secondary" onClick={onClose}>Close preview</Button>
@@ -192,7 +192,7 @@ function UnsupportedFilePreview({
   };
 
   return (
-    <div className="space-y-3 rounded-md border p-4">
+    <div className="w-full space-y-3 rounded-md border p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-lg font-medium">{file.name}</h3>
         <Button variant="secondary" onClick={onClose}>Close</Button>

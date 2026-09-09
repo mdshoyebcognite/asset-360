@@ -67,11 +67,20 @@ describe(TimeSeriesPanel.name, () => {
     expect(screen.getByText('You do not have access to this data.')).toBeInTheDocument();
   });
 
-  it('should list every linked series with its description and unit', () => {
+  it('should list every linked series with its description and unit on one line', () => {
     renderPanel(<TimeSeriesPanel {...makeProps({ timeSeries: [makeTimeSeriesSummary()] })} />);
 
     expect(screen.getByText('Discharge pressure')).toBeInTheDocument();
-    expect(screen.getByText('Pump discharge pressure')).toBeInTheDocument();
+    expect(screen.getByText('Pump discharge pressure · Unit: bar')).toBeInTheDocument();
+  });
+
+  it('should list a series without a description using only its unit', () => {
+    renderPanel(
+      <TimeSeriesPanel
+        {...makeProps({ timeSeries: [makeTimeSeriesSummary({ description: undefined })] })}
+      />,
+    );
+
     expect(screen.getByText('Unit: bar')).toBeInTheDocument();
   });
 
@@ -195,6 +204,67 @@ describe(TimeSeriesPanel.name, () => {
 
     expect(screen.getByText(TIME_RANGE_PATTERN).textContent).not.toBe(fullRange);
     expect(screen.getByRole('button', { name: 'Reset zoom' })).toBeEnabled();
+  });
+
+  it('should summarise the visible datapoints of each selected series', async () => {
+    const props = makeProps({
+      timeSeries: [
+        makeTimeSeriesSummary(),
+        makeTimeSeriesSummary({ ref: makeRef('PUMP-101-FLOW'), name: 'Flow rate', unit: 'm3/h' }),
+      ],
+      fetchChartData: vi.fn<TimeSeriesPanelProps['fetchChartData']>(() =>
+        Promise.resolve([
+          makeTimeSeriesDatapoints(),
+          makeTimeSeriesDatapoints({ ref: makeRef('PUMP-101-FLOW'), name: 'Flow rate' }),
+        ]),
+      ),
+    });
+    renderPanel(<TimeSeriesPanel {...props} />);
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    await userEvent.click(checkboxes[0]);
+    await userEvent.click(checkboxes[1]);
+
+    expect(await screen.findAllByText('Datapoints')).toHaveLength(2);
+    expect(screen.getAllByText('4.1')).toHaveLength(2);
+    expect(screen.getAllByText('4.4')).toHaveLength(4);
+  });
+
+  it('should recompute the stats from the zoomed window', async () => {
+    const props = makeProps({
+      timeSeries: [makeTimeSeriesSummary()],
+      fetchChartData: vi.fn<TimeSeriesPanelProps['fetchChartData']>(() =>
+        Promise.resolve([
+          makeTimeSeriesDatapoints({
+            datapoints: [
+              { timestamp: new Date('2024-05-01T00:00:00.000Z'), value: 1 },
+              { timestamp: new Date('2024-05-01T01:00:00.000Z'), value: 50 },
+              { timestamp: new Date('2024-05-01T02:00:00.000Z'), value: 99 },
+            ],
+          }),
+        ]),
+      ),
+    });
+    renderPanel(<TimeSeriesPanel {...props} />);
+
+    await selectFirstSeries();
+    expect(await screen.findByText('3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    // The zoom halves the window around its midpoint, leaving only the middle datapoint.
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getAllByText('50')).toHaveLength(4);
+    expect(screen.queryByText('99')).not.toBeInTheDocument();
+  });
+
+  it('should explain that the chart is hoverable', async () => {
+    renderPanel(<TimeSeriesPanel {...makeProps({ timeSeries: [makeTimeSeriesSummary()] })} />);
+
+    await selectFirstSeries();
+
+    expect(
+      await screen.findByText('Hover the chart to inspect individual datapoints.'),
+    ).toBeInTheDocument();
   });
 
   it('should restore the full time range when the analyst resets the zoom', async () => {
