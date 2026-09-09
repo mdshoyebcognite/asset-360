@@ -12,11 +12,16 @@ import {
   CheckboxItemControl,
   CheckboxItemLabel,
 } from '@cognite/aura/components/checkbox';
+import {
+  IconCalendarTime,
+  IconRestore,
+  IconZoomIn,
+  IconZoomOut,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Brush,
   CartesianGrid,
   Legend,
   Line,
@@ -44,6 +49,9 @@ type TimeSeriesPanelProps = {
   resolveChartWindow: (selectedSeries: TimeSeriesSummary[]) => Promise<{ start: Date; end: Date }>;
 };
 
+/** Inclusive [start, end] of the visible chart window, in epoch milliseconds. */
+type TimeDomain = [number, number];
+
 function seriesKey(ref: { space: string; externalId: string }): string {
   return encodeInstanceRef(ref);
 }
@@ -59,6 +67,7 @@ export function TimeSeriesPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [chartWindow, setChartWindow] = useState<{ start: Date; end: Date } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [zoomDomain, setZoomDomain] = useState<TimeDomain | null>(null);
 
   const selectedSeries = useMemo(
     () => timeSeries.filter((item) => selectedIds.includes(seriesKey(item.ref))),
@@ -91,6 +100,7 @@ export function TimeSeriesPanel({
       return [...current, id];
     });
     setChartWindow(null);
+    setZoomDomain(null);
   }, []);
 
   const refreshChart = useCallback(() => {
@@ -104,6 +114,40 @@ export function TimeSeriesPanel({
   });
 
   const chartPoints = useMemo(() => buildChartPoints(chartQuery.data ?? []), [chartQuery.data]);
+
+  const fullDomain = useMemo<TimeDomain | null>(() => {
+    const first = chartPoints[0]?.timestamp;
+    const last = chartPoints[chartPoints.length - 1]?.timestamp;
+    if (first === undefined || last === undefined) {
+      return null;
+    }
+    return [first, last];
+  }, [chartPoints]);
+
+  const activeDomain = zoomDomain ?? fullDomain;
+
+  const visiblePoints = useMemo(() => {
+    if (!activeDomain) {
+      return chartPoints;
+    }
+    const [start, end] = activeDomain;
+    return chartPoints.filter((point) => point.timestamp >= start && point.timestamp <= end);
+  }, [activeDomain, chartPoints]);
+
+  const applyZoom = useCallback(
+    (factor: number) => {
+      if (!fullDomain) {
+        return;
+      }
+      setZoomDomain(zoomTowardCenter(zoomDomain ?? fullDomain, fullDomain, factor));
+    },
+    [fullDomain, zoomDomain],
+  );
+
+  const axisTickFormatter = useMemo(() => {
+    const span = activeDomain ? activeDomain[1] - activeDomain[0] : 0;
+    return (value: number) => formatAxisTick(value, span);
+  }, [activeDomain]);
 
   const chartStatus = selectedSeries.length === 0
     ? 'empty'
@@ -170,19 +214,49 @@ export function TimeSeriesPanel({
           onRetry={() => void chartQuery.refetch()}
         >
           <div className="space-y-3">
-            <div className="flex justify-end">
-              <Button variant="secondary" onClick={refreshChart}>Refresh chart</Button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                <IconCalendarTime size={16} className="text-muted-foreground" />
+                <span>{activeDomain ? formatDomainLabel(activeDomain) : 'No time range'}</span>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  aria-label="Zoom out"
+                  onClick={() => applyZoom(ZOOM_OUT_FACTOR)}
+                  disabled={zoomDomain === null}
+                >
+                  <IconZoomOut size={18} />
+                </Button>
+                <Button
+                  variant="secondary"
+                  aria-label="Reset zoom"
+                  onClick={() => setZoomDomain(null)}
+                  disabled={zoomDomain === null}
+                >
+                  <IconRestore size={18} />
+                </Button>
+                <Button
+                  variant="secondary"
+                  aria-label="Zoom in"
+                  onClick={() => applyZoom(ZOOM_IN_FACTOR)}
+                >
+                  <IconZoomIn size={18} />
+                </Button>
+                <Button variant="secondary" onClick={refreshChart}>Refresh chart</Button>
+              </div>
             </div>
             <div className="h-[460px] w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartPoints} margin={{ top: 8, right: 24, bottom: 8, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                <LineChart data={visiblePoints} margin={{ top: 8, right: 24, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     type="number"
-                    domain={['dataMin', 'dataMax']}
+                    domain={activeDomain ?? ['dataMin', 'dataMax']}
+                    allowDataOverflow
                     minTickGap={48}
-                    tickFormatter={formatAxisTimestamp}
+                    tickFormatter={axisTickFormatter}
                   />
                   <YAxis width={56} />
                   <Tooltip labelFormatter={formatTimestampLabel} />
@@ -198,20 +272,9 @@ export function TimeSeriesPanel({
                       isAnimationActive={false}
                     />
                   ))}
-                  <Brush
-                    dataKey="timestamp"
-                    height={28}
-                    travellerWidth={10}
-                    stroke={CHART_COLORS[0]}
-                    tickFormatter={formatBrushTimestamp}
-                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Drag the handles on the slider below the chart to zoom into a time range, or drag the
-              middle of the slider to pan across time.
-            </p>
           </div>
         </PanelState>
       </CardContent>
@@ -221,12 +284,63 @@ export function TimeSeriesPanel({
 
 const CHART_COLORS = ['#486AED', '#0F766E', '#C2410C', '#7C3AED', '#BE123C'];
 
-function formatAxisTimestamp(value: number): string {
-  return new Date(value).toLocaleString();
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MIN_SPAN_MS = 60 * 1000;
+const ZOOM_IN_FACTOR = 0.5;
+const ZOOM_OUT_FACTOR = 2;
+
+/** Shrinks or grows the visible window around its midpoint, clamped to the full data range. */
+function zoomTowardCenter(
+  domain: TimeDomain,
+  fullDomain: TimeDomain,
+  factor: number,
+): TimeDomain | null {
+  const [fullStart, fullEnd] = fullDomain;
+  const [start, end] = domain;
+  const center = (start + end) / 2;
+  const maxSpan = fullEnd - fullStart;
+  const nextSpan = Math.min(Math.max((end - start) * factor, MIN_SPAN_MS), maxSpan);
+
+  if (nextSpan >= maxSpan) {
+    return null;
+  }
+
+  let nextStart = center - nextSpan / 2;
+  let nextEnd = center + nextSpan / 2;
+  if (nextStart < fullStart) {
+    nextStart = fullStart;
+    nextEnd = fullStart + nextSpan;
+  }
+  if (nextEnd > fullEnd) {
+    nextEnd = fullEnd;
+    nextStart = fullEnd - nextSpan;
+  }
+  return [nextStart, nextEnd];
 }
 
-function formatBrushTimestamp(value: number): string {
-  return new Date(value).toLocaleDateString();
+function formatAxisTick(value: number, spanMs: number): string {
+  const date = new Date(value);
+  if (spanMs > 180 * DAY_MS) {
+    return date.toLocaleDateString([], { month: 'short', year: 'numeric' });
+  }
+  if (spanMs > 2 * DAY_MS) {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatDomainBoundary(value: number): string {
+  return new Date(value).toLocaleString([], {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function formatDomainLabel(domain: TimeDomain): string {
+  return `${formatDomainBoundary(domain[0])} - ${formatDomainBoundary(domain[1])}`;
 }
 
 function formatTimestampLabel(value: ReactNode): string {

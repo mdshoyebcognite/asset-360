@@ -176,7 +176,41 @@ describe(TimeSeriesPanel.name, () => {
       expect(calls[calls.length - 1]?.[0]).toHaveLength(2);
     });
   });
+
+  it('should keep zoom out and reset disabled until the analyst zooms in', async () => {
+    renderPanel(<TimeSeriesPanel {...makeProps({ timeSeries: [makeTimeSeriesSummary()] })} />);
+
+    await selectFirstSeries();
+
+    expect(await screen.findByRole('button', { name: 'Zoom out' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reset zoom' })).toBeDisabled();
+  });
+
+  it('should narrow the visible time range when the analyst zooms in', async () => {
+    renderPanel(<TimeSeriesPanel {...makeProps({ timeSeries: [makeTimeSeriesSummary()] })} />);
+
+    await selectFirstSeries();
+    const fullRange = (await screen.findByText(TIME_RANGE_PATTERN)).textContent;
+    await userEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    expect(screen.getByText(TIME_RANGE_PATTERN).textContent).not.toBe(fullRange);
+    expect(screen.getByRole('button', { name: 'Reset zoom' })).toBeEnabled();
+  });
+
+  it('should restore the full time range when the analyst resets the zoom', async () => {
+    renderPanel(<TimeSeriesPanel {...makeProps({ timeSeries: [makeTimeSeriesSummary()] })} />);
+
+    await selectFirstSeries();
+    const fullRange = (await screen.findByText(TIME_RANGE_PATTERN)).textContent;
+    await userEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
+
+    expect(screen.getByText(TIME_RANGE_PATTERN).textContent).toBe(fullRange);
+    expect(screen.getByRole('button', { name: 'Reset zoom' })).toBeDisabled();
+  });
 });
+
+const TIME_RANGE_PATTERN = / - /;
 
 async function selectFirstSeries() {
   await userEvent.click(screen.getAllByRole('checkbox')[0]);
