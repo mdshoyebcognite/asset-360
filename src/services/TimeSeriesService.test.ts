@@ -142,6 +142,22 @@ describe(ApiTimeSeriesService.name, () => {
       ]);
     });
 
+    it('should parse datapoints whose timestamps are Date objects (as the SDK returns them)', async () => {
+      // The CogniteClient converts datapoint timestamps to Date instances, not raw numbers.
+      const timestamp = new Date('2024-05-01T00:00:00.000Z');
+      const service = new ApiTimeSeriesService(
+        {
+          datapoints: {
+            retrieve: vi.fn().mockResolvedValue([{ datapoints: [{ timestamp, value: 7 }] }]),
+          },
+        } as never,
+      );
+
+      const results = await service.fetchDatapoints(SERIES, new Date(), new Date());
+
+      expect(results[0]?.datapoints).toEqual([{ timestamp, value: 7 }]);
+    });
+
     it('should drop malformed datapoints rather than failing the whole series', async () => {
       const service = new ApiTimeSeriesService(
         {

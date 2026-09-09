@@ -54,6 +54,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function toTimestampMillis(timestamp: unknown): number | null {
+  if (timestamp instanceof Date) {
+    const millis = timestamp.getTime();
+    return Number.isNaN(millis) ? null : millis;
+  }
+  if (typeof timestamp === 'number') {
+    return timestamp;
+  }
+  return null;
+}
+
 function mapDatapointItems(datapoints: unknown): Datapoint[] {
   if (!Array.isArray(datapoints)) {
     return [];
@@ -64,11 +75,13 @@ function mapDatapointItems(datapoints: unknown): Datapoint[] {
     if (!isRecord(item)) {
       continue;
     }
-    const timestamp = item.timestamp;
+    // The CogniteClient returns datapoint timestamps as Date objects, but tolerate raw epoch
+    // millis too so parsing does not depend on SDK serialization details.
+    const millis = toTimestampMillis(item.timestamp);
     const value = item.value;
-    if (typeof timestamp === 'number' && typeof value === 'number') {
+    if (millis !== null && typeof value === 'number') {
       result.push({
-        timestamp: new Date(timestamp),
+        timestamp: new Date(millis),
         value,
       });
     }
