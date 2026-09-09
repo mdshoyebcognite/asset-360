@@ -4,11 +4,11 @@ externalId: "asset-360"
 infra: "appsApi"
 customer: "publicdata (publicdatacdm)"
 tier: "Tier 1: Monitoring & reporting"
-owner: "Md Shoyeb"
-userCount: ""
-businessValue: ""
-milestones: ""
-repoUrl: ""
+owner: "Md Shoyeb (md.shoyeb@cognitedata.com)"
+userCount: "~10-20 Operations Analysts per facility (notional; Tier 1 certification app on publicdata)"
+businessValue: "Cuts asset investigation from 1-2 hours across 3-4 siloed tools to under 15 minutes in one view (~1.5 hrs saved per investigation)"
+milestones: "Certification submission target: this week; no external UAT (certification exercise)"
+repoUrl: "https://github.com/mdshoyebcognite/asset-360"
 userRole: "This application is designed for an Operations Analyst (or Reliability Engineer) working at an industrial facility. Their typical day: They start their morning reviewing daily shift reports or alarms. When an anomaly is flagged on a specific piece of equipment (e.g., a pump or compressor), it is their job to investigate its history, current state, and relevant documentation to brief the maintenance team. Environment: They work primarily at a desk in an office environment, occasionally visiting the control room. They use a standard desktop or laptop with a large monitor."
 currentProblem: "The specific moment of pain occurs right after an asset is flagged for review. The Analyst knows the equipment tag (e.g., \"PUMP-101\"), but to understand what is happening, they have to play \"data detective.\" The breakdown: They have to log into SAP to see open work orders, open a separate historian tool to view live sensor data, and dig through a messy SharePoint drive to find the P&ID diagram. The workaround: Because this takes 1-2 hours per asset, they often rely on outdated Excel spreadsheets, ask colleagues on Teams for \"tribal knowledge,\" or make decisions with incomplete data to save time."
 oneSentenceStory: "As an Operations Analyst, I want to search for a specific piece of equipment and instantly see its connected time series data, recent work orders, and related documents in one unified view, so that I can quickly understand its status without switching between five different systems."
@@ -27,11 +27,11 @@ reviewedSections:
 
 - **Customer:** publicdata (publicdatacdm)
 - **Tier:** Tier 1: Monitoring & reporting
-- **Owner:** Md Shoyeb
-- **Expected users:** 
-- **Business value:** 
-- **Milestones:** 
-- **Repository:** 
+- **Owner:** Md Shoyeb (md.shoyeb@cognitedata.com)
+- **Expected users:** ~10-20 Operations Analysts per facility (notional; Tier 1 certification app on publicdata)
+- **Business value:** Cuts asset investigation from 1-2 hours across 3-4 siloed tools to under 15 minutes in one view (~1.5 hrs saved per investigation)
+- **Milestones:** Certification submission target: this week; no external UAT (certification exercise)
+- **Repository:** https://github.com/mdshoyebcognite/asset-360
 - **App externalId:** asset-360
 - **Infra:** appsApi
 
