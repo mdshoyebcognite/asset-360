@@ -13,8 +13,10 @@ import {
   CheckboxItemLabel,
 } from '@cognite/aura/components/checkbox';
 import { useQuery } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Brush,
   CartesianGrid,
   Legend,
   Line,
@@ -167,26 +169,23 @@ export function TimeSeriesPanel({
           errorMessage={chartQuery.error instanceof Error ? chartQuery.error.message : undefined}
           onRetry={() => void chartQuery.refetch()}
         >
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex justify-end">
               <Button variant="secondary" onClick={refreshChart}>Refresh chart</Button>
             </div>
-            <div className="h-80 w-full">
+            <div className="h-[460px] w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartPoints}>
+                <LineChart data={chartPoints} margin={{ top: 8, right: 24, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="timestamp"
-                    tickFormatter={(value: string) => new Date(value).toLocaleString()}
+                    type="number"
+                    domain={['dataMin', 'dataMax']}
+                    minTickGap={48}
+                    tickFormatter={formatAxisTimestamp}
                   />
-                  <YAxis />
-                  <Tooltip
-                    labelFormatter={(value) =>
-                      typeof value === 'string' || typeof value === 'number'
-                        ? new Date(value).toLocaleString()
-                        : ''
-                    }
-                  />
+                  <YAxis width={56} />
+                  <Tooltip labelFormatter={formatTimestampLabel} />
                   <Legend />
                   {selectedSeries.map((item, index) => (
                     <Line
@@ -196,11 +195,23 @@ export function TimeSeriesPanel({
                       name={item.name}
                       stroke={CHART_COLORS[index % CHART_COLORS.length]}
                       dot={false}
+                      isAnimationActive={false}
                     />
                   ))}
+                  <Brush
+                    dataKey="timestamp"
+                    height={28}
+                    travellerWidth={10}
+                    stroke={CHART_COLORS[0]}
+                    tickFormatter={formatBrushTimestamp}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Drag the handles on the slider below the chart to zoom into a time range, or drag the
+              middle of the slider to pan across time.
+            </p>
           </div>
         </PanelState>
       </CardContent>
@@ -210,22 +221,33 @@ export function TimeSeriesPanel({
 
 const CHART_COLORS = ['#486AED', '#0F766E', '#C2410C', '#7C3AED', '#BE123C'];
 
+function formatAxisTimestamp(value: number): string {
+  return new Date(value).toLocaleString();
+}
+
+function formatBrushTimestamp(value: number): string {
+  return new Date(value).toLocaleDateString();
+}
+
+function formatTimestampLabel(value: ReactNode): string {
+  if (typeof value === 'number' || typeof value === 'string') {
+    return new Date(value).toLocaleString();
+  }
+  return '';
+}
+
 function buildChartPoints(seriesData: TimeSeriesDatapoints[]) {
-  const timestampMap = new Map<string, Record<string, number | string>>();
+  const timestampMap = new Map<number, Record<string, number>>();
 
   for (const series of seriesData) {
     const key = seriesKey(series.ref);
     for (const point of series.datapoints) {
-      const timestamp = point.timestamp.toISOString();
+      const timestamp = point.timestamp.getTime();
       const existing = timestampMap.get(timestamp) ?? { timestamp };
       existing[key] = point.value;
       timestampMap.set(timestamp, existing);
     }
   }
 
-  return Array.from(timestampMap.values()).sort((left, right) => {
-    const leftTime = typeof left.timestamp === 'string' ? Date.parse(left.timestamp) : 0;
-    const rightTime = typeof right.timestamp === 'string' ? Date.parse(right.timestamp) : 0;
-    return leftTime - rightTime;
-  });
+  return Array.from(timestampMap.values()).sort((left, right) => left.timestamp - right.timestamp);
 }
