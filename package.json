@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "install:deps": "npm install --legacy-peer-deps",
     "lint": "eslint . --ext .js,.mjs,.cjs,.ts,.tsx",
     "lint:fix": "eslint . --fix --ext .js,.mjs,.cjs,.ts,.tsx",
     "deploy": "npx @cognite/cli@latest apps deploy --interactive",
