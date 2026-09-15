@@ -92,5 +92,15 @@ export default tseslint.config(
       'no-unused-vars': 'off',
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
-  }
+  },
+  {
+    files: ['src/cognite-file-viewer/**'],
+    rules: {
+      'aura/no-overriding-styles': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 );
