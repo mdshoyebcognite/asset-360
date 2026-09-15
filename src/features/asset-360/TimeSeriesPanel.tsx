@@ -6,6 +6,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@cognite/aura/chart';
+import { Alert, AlertDescription } from '@cognite/aura/components/alert';
 import { Button } from '@cognite/aura/components/button';
 import {
   Card,
@@ -27,7 +28,6 @@ import {
   IconZoomIn,
   IconZoomOut,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { useCallback, useId, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
@@ -46,9 +46,11 @@ import {
 } from './chartFormatting';
 import type { SeriesStats } from './seriesStats';
 import { computeSeriesStats } from './seriesStats';
+import { useTimeSeriesChartQuery } from './useTimeSeriesChartQuery';
 
 type TimeSeriesPanelProps = {
   timeSeries: TimeSeriesSummary[];
+  timeSeriesTruncated?: boolean;
   isLoading: boolean;
   error: Error | null;
   onRetry: () => void;
@@ -83,6 +85,7 @@ function buildSeriesDescription(series: TimeSeriesSummary): string {
 
 export function TimeSeriesPanel({
   timeSeries,
+  timeSeriesTruncated = false,
   isLoading,
   error,
   onRetry,
@@ -90,8 +93,6 @@ export function TimeSeriesPanel({
   resolveChartWindow,
 }: TimeSeriesPanelProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [chartWindow, setChartWindow] = useState<{ start: Date; end: Date } | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [zoomDomain, setZoomDomain] = useState<TimeDomain | null>(null);
   const instanceId = useId();
   // React ids contain colons, which are not safe inside an SVG `url(#...)` reference.
@@ -122,22 +123,11 @@ export function TimeSeriesPanel({
     [seriesSlots],
   );
 
-  const chartQuery = useQuery({
-    queryKey: [
-      'chart',
-      selectedIds,
-      chartWindow?.start.toISOString(),
-      chartWindow?.end.toISOString(),
-      refreshKey,
-    ],
-    enabled: selectedSeries.length > 0,
-    queryFn: async () => {
-      const window = chartWindow ?? await resolveChartWindow(selectedSeries);
-      if (!chartWindow) {
-        setChartWindow(window);
-      }
-      return fetchChartData(selectedSeries, window);
-    },
+  const { chartQuery, refreshChart, resetChartWindow } = useTimeSeriesChartQuery({
+    selectedSeries,
+    selectedIds,
+    fetchChartData,
+    resolveChartWindow,
   });
 
   const toggleSeries = useCallback((id: string) => {
@@ -147,13 +137,9 @@ export function TimeSeriesPanel({
       }
       return [...current, id];
     });
-    setChartWindow(null);
+    resetChartWindow();
     setZoomDomain(null);
-  }, []);
-
-  const refreshChart = useCallback(() => {
-    setRefreshKey((current) => current + 1);
-  }, []);
+  }, [resetChartWindow]);
 
   const listStatus = resolvePanelStatus({
     isLoading,
@@ -231,6 +217,13 @@ export function TimeSeriesPanel({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {timeSeriesTruncated ? (
+          <Alert>
+            <AlertDescription>
+              Showing the first 100 records; refine filters or paginate in a future release.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <PanelState
           status={listStatus}
           emptyTitle="No linked time series"

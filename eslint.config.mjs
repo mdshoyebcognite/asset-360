@@ -34,7 +34,7 @@ const noUnusedVarsOptions = {
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'build', '.next', 'coverage', '*.min.js', '.agents', '.cursor', '.claude', 'src/cognite-file-viewer/**'],
+    ignores: ['dist', 'build', '.next', 'coverage', '*.min.js', '.agents', '.cursor', '.claude'],
   },
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
@@ -92,5 +92,15 @@ export default tseslint.config(
       'no-unused-vars': 'off',
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
-  }
+  },
+  {
+    files: ['src/cognite-file-viewer/**'],
+    rules: {
+      'aura/no-overriding-styles': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 );

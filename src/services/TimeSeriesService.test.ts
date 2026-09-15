@@ -56,7 +56,7 @@ describe(ApiTimeSeriesService.name, () => {
 
       const results = await service.listForAsset(ASSET_REF);
 
-      expect(results).toEqual([
+      expect(results.items).toEqual([
         {
           ref: { space: 'cdf_cdm', externalId: 'ts-1' },
           name: 'Temperature',
@@ -64,6 +64,7 @@ describe(ApiTimeSeriesService.name, () => {
           unit: 'degC',
         },
       ]);
+      expect(results.truncated).toBe(false);
     });
 
     it('should fall back to the external id when the series has no name', async () => {
@@ -75,8 +76,8 @@ describe(ApiTimeSeriesService.name, () => {
 
       const results = await service.listForAsset(ASSET_REF);
 
-      expect(results[0]?.name).toBe('ts-2');
-      expect(results[0]?.unit).toBeUndefined();
+      expect(results.items[0]?.name).toBe('ts-2');
+      expect(results.items[0]?.unit).toBeUndefined();
     });
 
     it('should translate a 403 response into a no-access error', async () => {

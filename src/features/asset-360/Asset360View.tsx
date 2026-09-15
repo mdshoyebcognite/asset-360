@@ -1,4 +1,5 @@
 import type { HostAppAPI } from '@cognite/app-sdk';
+import { useCogniteSdk } from '@cognite/app-sdk/react';
 import { Alert, AlertDescription } from '@cognite/aura/components/alert';
 import { Button } from '@cognite/aura/components/button';
 import { Loader } from '@cognite/aura/components/loader';
@@ -27,6 +28,7 @@ export function Asset360View({ assetId, api }: Asset360ViewProps) {
   const { recordView } = useRecentlyViewed();
   const assetRef = useMemo(() => decodeInstanceRef(assetId), [assetId]);
   const data = useAsset360DataViewModel(assetRef);
+  const cogniteClient = useCogniteSdk();
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
 
@@ -97,6 +99,7 @@ export function Asset360View({ assetId, api }: Asset360ViewProps) {
               <PanelErrorBoundary panelName="time series" onRetry={data.retryTimeSeries}>
                 <TimeSeriesPanel
                   timeSeries={data.timeSeries}
+                  timeSeriesTruncated={data.timeSeriesTruncated}
                   isLoading={data.timeSeriesLoading}
                   error={data.timeSeriesError}
                   onRetry={data.retryTimeSeries}
@@ -110,6 +113,7 @@ export function Asset360View({ assetId, api }: Asset360ViewProps) {
               <PanelErrorBoundary panelName="work orders" onRetry={data.retryActivities}>
                 <WorkOrdersPanel
                   activities={data.activities}
+                  activitiesTruncated={data.activitiesTruncated}
                   isLoading={data.activitiesLoading}
                   error={data.activitiesError}
                   selectedActivityId={selectedActivityId}
@@ -123,6 +127,8 @@ export function Asset360View({ assetId, api }: Asset360ViewProps) {
               <PanelErrorBoundary panelName="documents" onRetry={data.retryFiles}>
                 <DocumentsPanel
                   files={data.files}
+                  filesTruncated={data.filesTruncated}
+                  cogniteClient={cogniteClient}
                   isLoading={data.filesLoading}
                   error={data.filesError}
                   selectedFileId={selectedFileId}

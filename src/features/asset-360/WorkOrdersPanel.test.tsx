@@ -23,6 +23,14 @@ describe(WorkOrdersPanel.name, () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
+  it('should expose an accessible name on the work orders table', () => {
+    render(<WorkOrdersPanel {...defaultProps} activities={[makeActivitySummary()]} />);
+
+    expect(
+      screen.getByRole('table', { name: 'Work orders linked to this asset' }),
+    ).toBeInTheDocument();
+  });
+
   it('should render an empty state when the asset has no activities', () => {
     render(<WorkOrdersPanel {...defaultProps} />);
 

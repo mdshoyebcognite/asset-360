@@ -44,7 +44,7 @@ describe(ApiActivityService.name, () => {
 
     const results = await service.listForAsset({ space: 'cdf_cdm', externalId: 'PUMP-101' });
 
-    expect(results[0]?.identifier).toBe('wo-new');
-    expect(results[1]?.identifier).toBe('wo-old');
+    expect(results.items[0]?.identifier).toBe('wo-new');
+    expect(results.items[1]?.identifier).toBe('wo-old');
   });
 });

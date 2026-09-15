@@ -1,5 +1,6 @@
 import type { CogniteClient } from '@cognite/sdk';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
 import {
   getStringProperty,
   getViewProperties,
@@ -10,9 +11,14 @@ import type { FileSummary } from '../types/domain';
 import type { InstanceRef } from '../types/instanceRef';
 
 import { toServiceError } from './errors';
+import {
+  listResultFromResponse,
+  RELATED_LIST_LIMIT,
+  type ListResult,
+} from './listResult';
 
 export interface FileService {
-  listForAsset(assetRef: InstanceRef): Promise<FileSummary[]>;
+  listForAsset(assetRef: InstanceRef): Promise<ListResult<FileSummary>>;
   getDownloadUrl(ref: InstanceRef): Promise<string>;
 }
 
@@ -50,9 +56,10 @@ function assetRelationFilter(assetRef: InstanceRef) {
 export class ApiFileService implements FileService {
   constructor(private readonly client: CogniteClient) {}
 
-  async listForAsset(assetRef: InstanceRef): Promise<FileSummary[]> {
+  async listForAsset(assetRef: InstanceRef): Promise<ListResult<FileSummary>> {
     try {
-      const response = await this.client.instances.list({
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.instances.list({
         instanceType: 'node',
         sources: [
           {
@@ -65,12 +72,14 @@ export class ApiFileService implements FileService {
           },
         ],
         filter: assetRelationFilter(assetRef),
-        limit: 100,
-      });
+        limit: RELATED_LIST_LIMIT,
+        }),
+      );
 
-      return collectCdmNodes(response.items)
+      const items = collectCdmNodes(response.items)
         .map(mapNodeToFileSummary)
         .sort((left, right) => fileRecency(right) - fileRecency(left));
+      return listResultFromResponse(items, RELATED_LIST_LIMIT);
     } catch (error: unknown) {
       throw toServiceError(error);
     }
@@ -78,14 +87,16 @@ export class ApiFileService implements FileService {
 
   async getDownloadUrl(ref: InstanceRef): Promise<string> {
     try {
-      const links = await this.client.files.getDownloadUrls([
+      const links = await cdfTaskRunner.schedule(() =>
+        this.client.files.getDownloadUrls([
         {
           instanceId: {
             space: ref.space,
             externalId: ref.externalId,
           },
         },
-      ]);
+        ]),
+      );
 
       const url = links[0]?.downloadUrl;
       if (!url) {

@@ -1,5 +1,6 @@
 import type { CogniteClient } from '@cognite/sdk';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
 import {
   getDirectRelationLabel,
   getStringProperty,
@@ -42,7 +43,8 @@ export class ApiAssetSearchService implements AssetSearchService {
     }
 
     try {
-      const response = await this.client.instances.search({
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.instances.search({
         instanceType: 'node',
         view: {
           type: 'view',
@@ -52,7 +54,8 @@ export class ApiAssetSearchService implements AssetSearchService {
         },
         query: trimmed,
         limit: 25,
-      });
+        }),
+      );
 
       return collectCdmNodes(response.items).map(mapNodeToAssetSummary);
     } catch (error: unknown) {

@@ -96,24 +96,35 @@ function App({
   connectToHostApp = deps?.connectToHostApp ?? connectToHostAppImpl,
 }: AppProps) {
   const [connection, setConnection] = useState<AppConnectResult | null>(null);
+  const [hostError, setHostError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void connectToHostApp().then((result) => {
-      if (!cancelled) {
-        setConnection({
-          api: {
-            syncInternalState: result.api.syncInternalState,
-            navigateExternal: result.api.navigateExternal,
-          },
-          initialState: result.initialState,
-        });
-      }
-    });
+    void connectToHostApp()
+      .then((result) => {
+        if (!cancelled) {
+          setConnection({
+            api: {
+              syncInternalState: result.api.syncInternalState,
+              navigateExternal: result.api.navigateExternal,
+            },
+            initialState: result.initialState,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHostError(true);
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, [connectToHostApp]);
+
+  if (hostError) {
+    return errorFallback;
+  }
 
   return (
     <CogniteSdkProvider loadingFallback={loadingFallback} errorFallback={errorFallback} deps={deps}>

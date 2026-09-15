@@ -32,9 +32,18 @@ const ASSET_ID = 'cdf_cdm:PUMP-101';
 function makeLoadedServices(): Services {
   const services = makeServices();
   vi.mocked(services.assetService.getAsset).mockResolvedValue(makeAssetDetail());
-  vi.mocked(services.timeSeriesService.listForAsset).mockResolvedValue([makeTimeSeriesSummary()]);
-  vi.mocked(services.activityService.listForAsset).mockResolvedValue([makeActivitySummary()]);
-  vi.mocked(services.fileService.listForAsset).mockResolvedValue([makeFileSummary()]);
+  vi.mocked(services.timeSeriesService.listForAsset).mockResolvedValue({
+    items: [makeTimeSeriesSummary()],
+    truncated: false,
+  });
+  vi.mocked(services.activityService.listForAsset).mockResolvedValue({
+    items: [makeActivitySummary()],
+    truncated: false,
+  });
+  vi.mocked(services.fileService.listForAsset).mockResolvedValue({
+    items: [makeFileSummary()],
+    truncated: false,
+  });
   return services;
 }
 
@@ -108,9 +117,18 @@ describe(Asset360View.name, () => {
   it('should show an error with retry when the asset itself fails to load', async () => {
     const services = makeServices();
     vi.mocked(services.assetService.getAsset).mockRejectedValue(new Error('Asset lookup failed'));
-    vi.mocked(services.timeSeriesService.listForAsset).mockResolvedValue([]);
-    vi.mocked(services.activityService.listForAsset).mockResolvedValue([]);
-    vi.mocked(services.fileService.listForAsset).mockResolvedValue([]);
+    vi.mocked(services.timeSeriesService.listForAsset).mockResolvedValue({
+      items: [],
+      truncated: false,
+    });
+    vi.mocked(services.activityService.listForAsset).mockResolvedValue({
+      items: [],
+      truncated: false,
+    });
+    vi.mocked(services.fileService.listForAsset).mockResolvedValue({
+      items: [],
+      truncated: false,
+    });
 
     await renderView({ services });
 
@@ -129,9 +147,10 @@ describe(Asset360View.name, () => {
 
   it('should open unsupported documents through the host navigation API', async () => {
     const services = makeLoadedServices();
-    vi.mocked(services.fileService.listForAsset).mockResolvedValue([
-      makeFileSummary({ name: 'layout.dwg', mimeType: 'application/acad' }),
-    ]);
+    vi.mocked(services.fileService.listForAsset).mockResolvedValue({
+      items: [makeFileSummary({ name: 'layout.dwg', mimeType: 'application/acad' })],
+      truncated: false,
+    });
     vi.mocked(services.fileService.getDownloadUrl).mockResolvedValue('https://files.test/dwg');
     const navigateExternal = vi.fn(() => Promise.resolve(true));
 

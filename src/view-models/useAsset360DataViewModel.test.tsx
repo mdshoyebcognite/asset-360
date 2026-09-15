@@ -167,11 +167,18 @@ describe(useAsset360DataViewModel.name, () => {
 
   function stubAllResolved() {
     vi.mocked(services.assetService.getAsset).mockResolvedValue(makeAssetDetail());
-    vi.mocked(services.timeSeriesService.listForAsset).mockResolvedValue([
-      makeTimeSeriesSummary(),
-    ]);
-    vi.mocked(services.activityService.listForAsset).mockResolvedValue([makeActivitySummary()]);
-    vi.mocked(services.fileService.listForAsset).mockResolvedValue([makeFileSummary()]);
+    vi.mocked(services.timeSeriesService.listForAsset).mockResolvedValue({
+      items: [makeTimeSeriesSummary()],
+      truncated: false,
+    });
+    vi.mocked(services.activityService.listForAsset).mockResolvedValue({
+      items: [makeActivitySummary()],
+      truncated: false,
+    });
+    vi.mocked(services.fileService.listForAsset).mockResolvedValue({
+      items: [makeFileSummary()],
+      truncated: false,
+    });
     vi.mocked(services.timeSeriesService.getLatestDatapointTimestamp).mockResolvedValue(null);
     vi.mocked(services.timeSeriesService.fetchDatapoints).mockResolvedValue([
       makeTimeSeriesDatapoints(),

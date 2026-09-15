@@ -1,5 +1,7 @@
 import type { CogniteClient, FileInfo } from '@cognite/sdk';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
+
 import {
   getComputedMimeType,
   isNativelySupportedMimeType,
@@ -57,12 +59,14 @@ async function getDownloadUrlExtended(
   client: CogniteClient,
   fileId: number,
 ): Promise<string> {
-  const result = await client.post<{ items: Array<{ downloadUrl: string }> }>(
-    `/api/v1/projects/${client.project}/files/downloadlink`,
-    {
-      data: { items: [{ id: fileId }] },
-      params: { extendedExpiration: true },
-    },
+  const result = await cdfTaskRunner.schedule(() =>
+    client.post<{ items: Array<{ downloadUrl: string }> }>(
+      `/api/v1/projects/${client.project}/files/downloadlink`,
+      {
+        data: { items: [{ id: fileId }] },
+        params: { extendedExpiration: true },
+      },
+    ),
   );
   const downloadUrl = result.data.items[0]?.downloadUrl;
   if (!downloadUrl) throw new Error(`No download URL for file ${fileId}`);
@@ -77,7 +81,9 @@ async function getPdfTemporaryLink(
   client: CogniteClient,
   fileId: number,
 ): Promise<string> {
-  const response = await client.documents.preview.pdfTemporaryLink(fileId);
+  const response = await cdfTaskRunner.schedule(() =>
+    client.documents.preview.pdfTemporaryLink(fileId),
+  );
   return response.temporaryLink;
 }
 

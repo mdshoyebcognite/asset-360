@@ -27,6 +27,9 @@ export type Asset360DataViewModel = {
   files: FileSummary[];
   filesLoading: boolean;
   filesError: Error | null;
+  filesTruncated: boolean;
+  timeSeriesTruncated: boolean;
+  activitiesTruncated: boolean;
   fetchChartData: (
     selectedSeries: TimeSeriesSummary[],
     window: { start: Date; end: Date } | null,
@@ -94,13 +97,16 @@ export function useAsset360DataViewModel(assetRef: InstanceRef | null): Asset360
     asset: assetQuery.data,
     assetLoading: assetQuery.isLoading,
     assetError: normalizeError(assetQuery.error),
-    timeSeries: timeSeriesQuery.data ?? [],
+    timeSeries: timeSeriesQuery.data?.items ?? [],
+    timeSeriesTruncated: timeSeriesQuery.data?.truncated ?? false,
     timeSeriesLoading: timeSeriesQuery.isLoading,
     timeSeriesError: normalizeError(timeSeriesQuery.error),
-    activities: activitiesQuery.data ?? [],
+    activities: activitiesQuery.data?.items ?? [],
+    activitiesTruncated: activitiesQuery.data?.truncated ?? false,
     activitiesLoading: activitiesQuery.isLoading,
     activitiesError: normalizeError(activitiesQuery.error),
-    files: filesQuery.data ?? [],
+    files: filesQuery.data?.items ?? [],
+    filesTruncated: filesQuery.data?.truncated ?? false,
     filesLoading: filesQuery.isLoading,
     filesError: normalizeError(filesQuery.error),
     fetchChartData,

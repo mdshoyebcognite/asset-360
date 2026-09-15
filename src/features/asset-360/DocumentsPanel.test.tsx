@@ -59,6 +59,22 @@ describe(DocumentsPanel.name, () => {
     expect(screen.getByText('You do not have access to this data.')).toBeInTheDocument();
   });
 
+  it('should expose an accessible name on the documents table', async () => {
+    await renderPanel(<DocumentsPanel {...defaultProps} files={[makeFileSummary()]} />);
+
+    expect(
+      screen.getByRole('table', { name: 'Documents linked to this asset' }),
+    ).toBeInTheDocument();
+  });
+
+  it('should warn when the file list is truncated', async () => {
+    await renderPanel(
+      <DocumentsPanel {...defaultProps} files={[makeFileSummary()]} filesTruncated />,
+    );
+
+    expect(screen.getByText(/Showing the first 100 records/)).toBeInTheDocument();
+  });
+
   it('should render name, type, and last modified date for each file', async () => {
     await renderPanel(<DocumentsPanel {...defaultProps} files={[makeFileSummary()]} />);
 

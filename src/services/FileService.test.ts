@@ -55,7 +55,7 @@ describe(ApiFileService.name, () => {
 
       const results = await service.listForAsset(ASSET_REF);
 
-      expect(results).toEqual([
+      expect(results.items).toEqual([
         {
           ref: FILE_REF,
           name: 'Manual.pdf',
@@ -81,7 +81,21 @@ describe(ApiFileService.name, () => {
 
       const results = await service.listForAsset(ASSET_REF);
 
-      expect(results.map((file) => file.name)).toEqual(['Newer.pdf', 'Older.pdf']);
+      expect(results.items.map((file) => file.name)).toEqual(['Newer.pdf', 'Older.pdf']);
+    });
+
+    it('should set truncated when the API returns the list limit', async () => {
+      const nodes = Array.from({ length: 100 }, (_, index) =>
+        makeNode(`file-${index}`, 1_700_000_000_000, { name: `File ${index}.pdf` }),
+      );
+      const service = new ApiFileService(
+        { instances: { list: vi.fn().mockResolvedValue({ items: nodes }) } } as never,
+      );
+
+      const results = await service.listForAsset(ASSET_REF);
+
+      expect(results.items).toHaveLength(100);
+      expect(results.truncated).toBe(true);
     });
 
     it('should fall back to the external id when the file has no name', async () => {
@@ -93,8 +107,8 @@ describe(ApiFileService.name, () => {
 
       const results = await service.listForAsset(ASSET_REF);
 
-      expect(results[0]?.name).toBe('file-9');
-      expect(results[0]?.mimeType).toBeUndefined();
+      expect(results.items[0]?.name).toBe('file-9');
+      expect(results.items[0]?.mimeType).toBeUndefined();
     });
 
     it('should translate a 403 response into a no-access error', async () => {

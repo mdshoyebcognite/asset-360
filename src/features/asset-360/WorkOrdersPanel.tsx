@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from '@cognite/aura/components/alert';
 import { Badge } from '@cognite/aura/components/badge';
 import { Button } from '@cognite/aura/components/button';
 import {
@@ -16,6 +17,7 @@ import { encodeInstanceRef } from '../../types/instanceRef';
 
 type WorkOrdersPanelProps = {
   activities: ActivitySummary[];
+  activitiesTruncated?: boolean;
   isLoading: boolean;
   error: Error | null;
   selectedActivityId: string | null;
@@ -25,6 +27,7 @@ type WorkOrdersPanelProps = {
 
 export function WorkOrdersPanel({
   activities,
+  activitiesTruncated = false,
   isLoading,
   error,
   selectedActivityId,
@@ -48,6 +51,13 @@ export function WorkOrdersPanel({
         <CardDescription>Recent maintenance activities linked to this asset.</CardDescription>
       </CardHeader>
       <CardContent>
+        {activitiesTruncated ? (
+          <Alert className="mb-4">
+            <AlertDescription>
+              Showing the first 100 records; refine filters or paginate in a future release.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <PanelState
           status={status}
           emptyTitle="No linked work orders"
@@ -56,7 +66,10 @@ export function WorkOrdersPanel({
           onRetry={onRetry}
         >
           <div className="w-full overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+            <table
+              aria-label="Work orders linked to this asset"
+              className="w-full border-collapse text-left"
+            >
               <thead>
                 <tr className="border-b text-sm text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Identifier</th>

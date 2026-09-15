@@ -330,7 +330,7 @@ function PdfRenderer(props: PdfRendererProps) {
   // -- Annotations --
   const annotationsEnabled = showAnnotations && instanceId !== undefined;
 
-  const { annotations } = useDocumentAnnotations(
+  const { annotations, annotationsCapped } = useDocumentAnnotations(
     client,
     instanceId,
     currentPage,
@@ -385,6 +385,25 @@ function PdfRenderer(props: PdfRendererProps) {
             rotate={rotation}
             onLoadSuccess={handlePageLoadSuccess}
           />
+          {annotationsEnabled && annotationsCapped && (
+            <div
+              role="status"
+              style={{
+                position: 'absolute',
+                top: 4,
+                left: 4,
+                right: 4,
+                zIndex: 11,
+                padding: '4px 8px',
+                fontSize: 12,
+                background: 'rgba(0,0,0,0.65)',
+                color: '#fff',
+                borderRadius: 4,
+              }}
+            >
+              Some annotations may be hidden
+            </div>
+          )}
           {annotationsEnabled && pageDims.width > 0 && annotations.length > 0 && (
             <DocumentAnnotationOverlay
               annotations={annotations}

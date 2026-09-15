@@ -69,6 +69,8 @@ export interface UseDocumentAnnotationsResult {
   annotations: DocumentAnnotation[];
   isLoading: boolean;
   error: Error | null;
+  /** True when annotation query hit the cursor page cap; some may be hidden. */
+  annotationsCapped?: boolean;
 }
 
 // ============================================================================

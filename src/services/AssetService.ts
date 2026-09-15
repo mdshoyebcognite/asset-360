@@ -1,5 +1,6 @@
 import type { CogniteClient } from '@cognite/sdk';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
 import {
   getDirectRelationLabel,
   getStringProperty,
@@ -38,7 +39,8 @@ export class ApiAssetService implements AssetService {
 
   async getAsset(ref: InstanceRef): Promise<AssetDetail | null> {
     try {
-      const response = await this.client.instances.retrieve({
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.instances.retrieve({
         items: [
           {
             instanceType: 'node',
@@ -56,7 +58,8 @@ export class ApiAssetService implements AssetService {
             },
           },
         ],
-      });
+        }),
+      );
 
       let node: CdmNode | undefined;
       for (const item of response.items) {

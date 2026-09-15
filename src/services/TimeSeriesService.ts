@@ -1,5 +1,6 @@
 import type { CogniteClient } from '@cognite/sdk';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
 import {
   getDirectRelationLabel,
   getStringProperty,
@@ -11,9 +12,14 @@ import type { Datapoint, TimeSeriesDatapoints, TimeSeriesSummary } from '../type
 import type { InstanceRef } from '../types/instanceRef';
 
 import { toServiceError } from './errors';
+import {
+  listResultFromResponse,
+  RELATED_LIST_LIMIT,
+  type ListResult,
+} from './listResult';
 
 export interface TimeSeriesService {
-  listForAsset(assetRef: InstanceRef): Promise<TimeSeriesSummary[]>;
+  listForAsset(assetRef: InstanceRef): Promise<ListResult<TimeSeriesSummary>>;
   fetchDatapoints(
     series: TimeSeriesSummary[],
     start: Date,
@@ -92,9 +98,10 @@ function mapDatapointItems(datapoints: unknown): Datapoint[] {
 export class ApiTimeSeriesService implements TimeSeriesService {
   constructor(private readonly client: CogniteClient) {}
 
-  async listForAsset(assetRef: InstanceRef): Promise<TimeSeriesSummary[]> {
+  async listForAsset(assetRef: InstanceRef): Promise<ListResult<TimeSeriesSummary>> {
     try {
-      const response = await this.client.instances.list({
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.instances.list({
         instanceType: 'node',
         sources: [
           {
@@ -107,10 +114,12 @@ export class ApiTimeSeriesService implements TimeSeriesService {
           },
         ],
         filter: assetRelationFilter(assetRef),
-        limit: 100,
-      });
+        limit: RELATED_LIST_LIMIT,
+        }),
+      );
 
-      return collectCdmNodes(response.items).map(mapNodeToTimeSeriesSummary);
+      const items = collectCdmNodes(response.items).map(mapNodeToTimeSeriesSummary);
+      return listResultFromResponse(items, RELATED_LIST_LIMIT);
     } catch (error: unknown) {
       throw toServiceError(error);
     }
@@ -126,7 +135,8 @@ export class ApiTimeSeriesService implements TimeSeriesService {
     }
 
     try {
-      const response = await this.client.datapoints.retrieve({
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.datapoints.retrieve({
         items: series.map((item) => ({
           instanceId: {
             space: item.ref.space,
@@ -136,7 +146,8 @@ export class ApiTimeSeriesService implements TimeSeriesService {
         start,
         end,
         limit: 1000,
-      });
+        }),
+      );
 
       const seriesResults = Array.isArray(response) ? response : [];
 
@@ -160,13 +171,15 @@ export class ApiTimeSeriesService implements TimeSeriesService {
     }
 
     try {
-      const response = await this.client.datapoints.retrieveLatest(
-        series.map((item) => ({
-          instanceId: {
-            space: item.ref.space,
-            externalId: item.ref.externalId,
-          },
-        })),
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.datapoints.retrieveLatest(
+          series.map((item) => ({
+            instanceId: {
+              space: item.ref.space,
+              externalId: item.ref.externalId,
+            },
+          })),
+        ),
       );
 
       let latest: Date | null = null;

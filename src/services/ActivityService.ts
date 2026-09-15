@@ -1,5 +1,6 @@
 import type { CogniteClient } from '@cognite/sdk';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
 import {
   getStringProperty,
   getViewProperties,
@@ -11,9 +12,14 @@ import type { ActivitySummary } from '../types/domain';
 import type { InstanceRef } from '../types/instanceRef';
 
 import { toServiceError } from './errors';
+import {
+  listResultFromResponse,
+  RELATED_LIST_LIMIT,
+  type ListResult,
+} from './listResult';
 
 export interface ActivityService {
-  listForAsset(assetRef: InstanceRef): Promise<ActivitySummary[]>;
+  listForAsset(assetRef: InstanceRef): Promise<ListResult<ActivitySummary>>;
 }
 
 function mapNodeToActivitySummary(node: CdmNode): ActivitySummary {
@@ -58,9 +64,10 @@ function assetRelationFilter(assetRef: InstanceRef) {
 export class ApiActivityService implements ActivityService {
   constructor(private readonly client: CogniteClient) {}
 
-  async listForAsset(assetRef: InstanceRef): Promise<ActivitySummary[]> {
+  async listForAsset(assetRef: InstanceRef): Promise<ListResult<ActivitySummary>> {
     try {
-      const response = await this.client.instances.list({
+      const response = await cdfTaskRunner.schedule(() =>
+        this.client.instances.list({
         instanceType: 'node',
         sources: [
           {
@@ -73,12 +80,14 @@ export class ApiActivityService implements ActivityService {
           },
         ],
         filter: assetRelationFilter(assetRef),
-        limit: 100,
-      });
+        limit: RELATED_LIST_LIMIT,
+        }),
+      );
 
-      return collectCdmNodes(response.items)
+      const items = collectCdmNodes(response.items)
         .map(mapNodeToActivitySummary)
         .sort((left, right) => activityRecency(right) - activityRecency(left));
+      return listResultFromResponse(items, RELATED_LIST_LIMIT);
     } catch (error: unknown) {
       throw toServiceError(error);
     }

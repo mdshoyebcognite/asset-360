@@ -1,6 +1,8 @@
 import type { CogniteClient } from '@cognite/sdk';
 import { useState, useEffect, useRef } from 'react';
 
+import { cdfTaskRunner } from '../lib/cdfTaskRunner';
+
 import { resolveFileDownloadConfig } from './fileResolution';
 import { inferMimeTypeFromUrl } from './mimeTypes';
 import type { FileSource, UseFileResolverResult } from './types';
@@ -82,7 +84,9 @@ export function useFileResolver(
                 },
               };
 
-        const [fileInfo] = await client.files.retrieve([idParam]);
+        const [fileInfo] = await cdfTaskRunner.schedule(() =>
+          client.files.retrieve([idParam]),
+        );
         if (cancelled()) return;
 
         const resolved = await resolveFileDownloadConfig(client, fileInfo);

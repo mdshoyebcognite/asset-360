@@ -1,4 +1,4 @@
-import { useCogniteSdk } from '@cognite/app-sdk/react';
+import { Alert, AlertDescription } from '@cognite/aura/components/alert';
 import { Button } from '@cognite/aura/components/button';
 import {
   Card,
@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from '@cognite/aura/components/card';
 import { Loader } from '@cognite/aura/components/loader';
+import type { CogniteClient } from '@cognite/sdk';
 import { useState } from 'react';
 
 import { CogniteFileViewer } from '../../cognite-file-viewer';
@@ -20,6 +21,8 @@ import { encodeInstanceRef } from '../../types/instanceRef';
 
 type DocumentsPanelProps = {
   files: FileSummary[];
+  filesTruncated?: boolean;
+  cogniteClient?: CogniteClient;
   isLoading: boolean;
   error: Error | null;
   selectedFileId: string | null;
@@ -30,6 +33,8 @@ type DocumentsPanelProps = {
 
 export function DocumentsPanel({
   files,
+  filesTruncated = false,
+  cogniteClient,
   isLoading,
   error,
   selectedFileId,
@@ -37,7 +42,6 @@ export function DocumentsPanel({
   onRetry,
   onOpenExternal,
 }: DocumentsPanelProps) {
-  const client = useCogniteSdk();
   const { fileService } = useServices();
   const status = resolvePanelStatus({
     isLoading,
@@ -54,6 +58,13 @@ export function DocumentsPanel({
         <CardDescription>Files linked to this asset, with inline preview where supported.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {filesTruncated ? (
+          <Alert>
+            <AlertDescription>
+              Showing the first 100 records; refine filters or paginate in a future release.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <PanelState
           status={status}
           emptyTitle="No linked documents"
@@ -62,7 +73,10 @@ export function DocumentsPanel({
           onRetry={onRetry}
         >
           <div className="w-full overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+            <table
+              aria-label="Documents linked to this asset"
+              className="w-full border-collapse text-left"
+            >
               <thead>
                 <tr className="border-b text-sm text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Name</th>
@@ -103,7 +117,7 @@ export function DocumentsPanel({
         {selectedFile ? (
           <DocumentPreview
             file={selectedFile}
-            client={client}
+            client={cogniteClient}
             fileService={fileService}
             onOpenExternal={onOpenExternal}
             onClose={() => onSelectFile(null)}
@@ -116,7 +130,7 @@ export function DocumentsPanel({
 
 type DocumentPreviewProps = {
   file: FileSummary;
-  client: ReturnType<typeof useCogniteSdk>;
+  client?: CogniteClient;
   fileService: { getDownloadUrl: (ref: { space: string; externalId: string }) => Promise<string> };
   onOpenExternal: (url: string) => void;
   onClose: () => void;

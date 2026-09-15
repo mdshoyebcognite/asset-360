@@ -65,6 +65,17 @@ describe('App', () => {
     vi.clearAllMocks();
   });
 
+  it('should show host connection error when connectToHostApp rejects', async () => {
+    renderApp(
+      <App
+        deps={makeDeps()}
+        connectToHostApp={() => Promise.reject(new Error('host down'))}
+      />,
+    );
+
+    expect(await screen.findByText('Failed to connect to Fusion host')).toBeInTheDocument();
+  });
+
   it('renders loading state', () => {
     renderApp(<App deps={makeLoadingDeps()} connectToHostApp={() => new Promise<never>(() => undefined)} />);
     expect(screen.getByText('Loading project...')).toBeInTheDocument();
